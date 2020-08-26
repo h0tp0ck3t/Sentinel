@@ -1,0 +1,27 @@
+// Name: User Account Created or Deleted
+// Description: User account creations and deletions on a given host during the time of or recently after compromise and in the range of +-12h
+// Entity: #Host
+// Input: Computername, Hostname, HostId
+// Output: Accounts
+//
+// QueryPeriod: +-12h default, change as needed
+//
+// Data Source: #SecurityEvent
+//
+// Tactics: #Persistence, #Discovery, #LateralMovement, #Collection
+//
+let GetAccountChangesOnHost = (suspiciousEventTime:datetime, v_Host:string){
+let v_StartTime = suspiciousEventTime-12h;
+let v_EndTime = suspiciousEventTime+12h;
+SecurityEvent 
+| where TimeGenerated between (v_StartTime .. v_EndTime)
+| where toupper(Computer) contains v_Host or toupper(WorkstationName) contains v_Host
+// 4720: A user account was created, 4726: A user account was deleted
+| where EventID == "4720" or EventID == "4726"
+| where AccountType == "User"
+| summarize min(TimeGenerated), max(TimeGenerated) by Computer, Account, TargetAccount, Activity
+| project min_TimeGenerated, max_TimeGenerated, Computer, Account, TargetAccount, Activity
+| top 10 by min_TimeGenerated asc nulls last 
+};
+// change datetime value and <hostname> value below
+GetAccountChangesOnHost(datetime('2019-01-30T10:02:51.000'), toupper("<hostname>"))
